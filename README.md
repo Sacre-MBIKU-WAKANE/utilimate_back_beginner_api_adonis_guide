@@ -779,3 +779,132 @@ Explication :
 - `references('id')` : `user_id` reference `users.id`.
 - `inTable('users')` : la cle referencee se trouve dans la table `users`.
 - `onDelete('CASCADE')` : si un user est supprime, ses actualites sont supprimees.
+
+---
+
+## Etape 8 - Modele Module + relation many-to-many
+
+### Objectif
+Creer un modele `Module` et une relation **many-to-many** avec `User` (un user suit plusieurs modules, et un module a plusieurs users).
+
+### 1) Creer le modele + migration
+```bash
+node ace make:model Module -m
+```
+
+### 2) Ajouter la table pivot
+Pour une relation many-to-many, on ajoute une table **pivot** :
+```bash
+node ace make:migration users_modules
+```
+
+### 3) Definir la table `modules`
+```ts
+table.increments('id')
+table.string('title').notNullable()
+table.text('description').notNullable()
+
+table.timestamp('created_at')
+table.timestamp('updated_at')
+```
+
+### 4) Definir la table pivot `users_modules`
+```ts
+table.increments('id')
+table
+  .integer('user_id')
+  .unsigned()
+  .notNullable()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+table
+  .integer('module_id')
+  .unsigned()
+  .notNullable()
+  .references('id')
+  .inTable('modules')
+  .onDelete('CASCADE')
+table.unique(['user_id', 'module_id'])
+
+table.timestamp('created_at')
+table.timestamp('updated_at')
+```
+
+### 5) Definir la relation dans les modeles
+Dans `Module` :
+
+```ts
+import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
+import type { ManyToMany } from '@adonisjs/lucid/types/relations'
+import User from '#models/user'
+
+export default class Module extends BaseModel {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column()
+  declare title: string
+
+  @column()
+  declare description: string
+
+  @manyToMany(() => User, { pivotTable: 'users_modules' })
+  declare users: ManyToMany<typeof User>
+}
+```
+
+Dans `User` :
+
+```ts
+import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
+import type { ManyToMany } from '@adonisjs/lucid/types/relations'
+import Module from '#models/module'
+
+export default class User extends BaseModel {
+  @manyToMany(() => Module, { pivotTable: 'users_modules' })
+  declare modules: ManyToMany<typeof Module>
+}
+```
+
+### 6) Explications detaillees (comme hasOne)
+
+#### 6.1) Qu'est-ce que `manyToMany` ?
+`manyToMany` signifie : **un User peut suivre plusieurs Modules, et un Module peut avoir plusieurs Users**.  
+On l'utilise des deux cotes pour naviguer dans les deux sens.
+
+#### 6.2) Pourquoi une table pivot ?
+Une relation many-to-many ne peut pas etre representee par une seule cle etrangere.  
+On utilise donc une table intermediaire (pivot) qui stocke les paires `user_id` / `module_id`.
+
+#### 6.3) Pourquoi les cles etrangeres sont dans `users_modules` ?
+Chaque ligne de la table pivot relie **un user** a **un module**.  
+C'est pour cela qu'on y place `user_id` et `module_id`.
+
+#### 6.4) Detail des methodes dans la migration
+```ts
+table
+  .integer('user_id')
+  .unsigned()
+  .notNullable()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+```
+```ts
+table
+  .integer('module_id')
+  .unsigned()
+  .notNullable()
+  .references('id')
+  .inTable('modules')
+  .onDelete('CASCADE')
+```
+
+Explication :
+- `integer(...)` : colonne entiere.
+- `unsigned()` : interdit les valeurs negatives.
+- `notNullable()` : la relation est obligatoire.
+- `references('id')` + `inTable(...)` : cree la cle etrangere.
+- `onDelete('CASCADE')` : supprime la relation si le user/module est supprime.
+- `unique(['user_id', 'module_id'])` : empeche les doublons.

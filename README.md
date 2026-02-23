@@ -439,6 +439,62 @@ Chemin : `resources/views/partials/header.edge`
 
 ---
 
+## Etape 4 - Configurer Lucid avec PostgreSQL
+
+### Objectif
+Brancher l'ORM Lucid sur une base PostgreSQL via les variables d'environnement.
+
+### 1) Verifier la config Lucid
+Adonis utilise le fichier `config/database.ts`.  
+Dans ce projet, la connexion par defaut est deja `postgres` :
+
+```ts
+const dbConfig = defineConfig({
+  connection: 'postgres',
+  connections: {
+    postgres: {
+      client: 'pg',
+      connection: {
+        host: env.get('DB_HOST'),
+        port: env.get('DB_PORT'),
+        user: env.get('DB_USER'),
+        password: env.get('DB_PASSWORD'),
+        database: env.get('DB_DATABASE'),
+      },
+      migrations: {
+        naturalSort: true,
+        paths: ['database/migrations'],
+      },
+    },
+  },
+})
+```
+
+### 2) Renseigner les variables d'environnement
+Dans `.env`, adapte les valeurs a ta base PostgreSQL locale :
+
+```
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_USER=root
+DB_PASSWORD=root
+DB_DATABASE=app
+```
+
+Tu peux aussi mettre les memes valeurs dans `.env.example` pour partager la config avec l'equipe.
+
+### 3) Pre-requis PostgreSQL
+Assure-toi que :
+- PostgreSQL tourne en local
+- La base `DB_DATABASE` existe
+- L'utilisateur `DB_USER` a les droits
+
+### 4) A retenir
+- La connexion est pilotee par les variables `DB_*`.
+- Le driver PostgreSQL utilise le package `pg` (deja present dans `package.json`).
+
+---
+
 ## Prochaine etape
 
-Quand tu es pret, on passe a l'etape 4 (par exemple : validation, base de donnees, ou routes REST completes).
+Quand tu es pret, on passe a l'etape 5 (migrations + premier modele).

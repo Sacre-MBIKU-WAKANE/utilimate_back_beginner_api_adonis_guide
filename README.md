@@ -569,3 +569,114 @@ node ace migration:run
 ```
 
 Si la migration echoue, verifie que PostgreSQL tourne, que la base existe et que les variables `DB_*` sont correctes.
+
+---
+
+## Etape 6 - Modele Role + relation one-to-one
+
+### Objectif
+Ajouter un modele `Role` et etablir une relation **one-to-one** entre `User` et `Role`.
+
+### 1) Creer le modele + migration
+```bash
+node ace make:model Role -m
+```
+
+### 2) Definir la table `roles`
+La table contient :
+- `user_id` unique (garantit qu'un utilisateur n'a qu'un seul role)
+- `name` avec les valeurs `ADMIN` ou `APPRENANTS`
+
+Exemple de migration :
+
+```ts
+table.increments('id')
+table
+  .integer('user_id')
+  .notNullable()
+  .unique()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+table.enum('name', ['ADMIN', 'APPRENANTS']).notNullable().defaultTo('APPRENANTS')
+
+table.timestamp('created_at')
+table.timestamp('updated_at')
+```
+
+### 3) Definir la relation dans les modeles
+Dans `Role` (belongsTo) :
+
+```ts
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import User from '#models/user'
+
+export type RoleName = 'ADMIN' | 'APPRENANTS'
+
+export default class Role extends BaseModel {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column({ columnName: 'user_id' })
+  declare userId: number
+
+  @column()
+  declare name: RoleName
+
+  @belongsTo(() => User)
+  declare user: BelongsTo<typeof User>
+}
+```
+
+Dans `User` (hasOne) :
+
+```ts
+import { BaseModel, column, hasOne } from '@adonisjs/lucid/orm'
+import type { HasOne } from '@adonisjs/lucid/types/relations'
+import Role from '#models/role'
+
+export default class User extends BaseModel {
+  @hasOne(() => Role)
+  declare role: HasOne<typeof Role>
+}
+```
+
+### 4) A retenir
+- `user_id` **unique** = un seul role par utilisateur.
+- `belongsTo` + `hasOne` = relation one-to-one.
+
+### 5) Explications detaillees
+
+#### 5.1) Qu'est-ce que `hasOne` ?
+`hasOne` signifie : **un User possede un seul Role**.  
+On l'ecrit dans le modele `User` parce que c'est l'entite "parente" qui **detient** un role unique.
+
+#### 5.2) Pourquoi `belongsTo` dans Role ?
+`belongsTo` signifie : **le Role appartient a un User**.  
+On l'ecrit dans `Role` parce que la table `roles` porte la **cle etrangere** `user_id`.  
+Autrement dit, le role "sait" a quel utilisateur il est rattache.
+
+#### 5.3) Pourquoi la cle etrangere est dans `roles` ?
+On veut garantir **un role par utilisateur**.  
+Le plus simple est de mettre `user_id` dans la table `roles` et de la rendre `unique`.  
+Ainsi, chaque `user_id` ne peut apparaitre qu'une seule fois dans `roles`.
+
+#### 5.4) Detail des methodes dans la migration
+```ts
+table
+  .integer('user_id')
+  .notNullable()
+  .unique()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+```
+
+Explication de chaque partie :
+- `integer('user_id')` : cree une colonne `user_id` de type entier.
+- `notNullable()` : interdit les valeurs `NULL` (un role doit avoir un user).
+- `unique()` : impose l'unicite (un user = un seul role).
+- `references('id')` : `user_id` reference la colonne `id`.
+- `inTable('users')` : la cle referencee se trouve dans la table `users`.
+- `onDelete('CASCADE')` : si un user est supprime, son role est supprime automatiquement.

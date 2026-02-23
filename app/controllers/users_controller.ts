@@ -1,15 +1,17 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import hash from '@adonisjs/core/services/hash'
+import User from '#models/user'
 import { registerValidator } from '#validators/register_validator'
 import { loginValidator } from '#validators/login_validator'
 
-type User = {
-  id: number
-  name: string
-  email: string
-  password: string
-}
-
-const users: User[] = []
+// ANCIENNE APPROCHE (tableau en memoire) - conservee pour l'explication
+// type User = {
+//   id: number
+//   name: string
+//   email: string
+//   password: string
+// }
+// const users: User[] = []
 
 type ValidationErrorItem = {
   field: string
@@ -58,23 +60,35 @@ export default class UsersController {
         })
       )
     }
-    const user: User = {
-      id: users.length + 1,
+    const existingUser = await User.findBy('email', payload.email)
+
+    if (existingUser) {
+      const message = 'Cet email est deja utilise'
+      return response.status(422).send(
+        await view.render('pages/register', {
+          errors: [{ field: 'email', message }],
+          errorMap: { email: message },
+          values: request.only(['name', 'email']),
+        })
+      )
+    }
+    const user = await User.create({
       name: payload.name,
       email: payload.email,
-      password: payload.password,
-    }
+      password: await hash.make(payload.password),
+    })
 
-    users.push(user)
+    await user.related('role').create({
+      name: 'APPRENANTS',
+    })
 
     return response.json({
-      message: 'Utilisateur enregistre en memoire',
+      message: 'Utilisateur enregistre',
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
       },
-      users,
     })
   }
 
@@ -92,14 +106,19 @@ export default class UsersController {
         })
       )
     }
-    const user = users.find(
-      (item) => item.email === payload.email && item.password === payload.password
-    )
+    // const user = await User.findBy('email', payload.email)
+    // const isValidPassword = user ? await hash.verify(user.password, payload.password) : false
+    const user = await User.verifyCredentials(payload.email, payload.password)
 
     if (!user) {
-      return response.unauthorized({
-        message: 'Email ou mot de passe incorrect',
-      })
+      const message = 'Email ou mot de passe incorrect'
+      return response.status(422).send(
+        await view.render('pages/login', {
+          errors: [{ field: 'email', message }],
+          errorMap: { email: message, password: message },
+          values: request.only(['email']),
+        })
+      )
     }
 
     return response.json({

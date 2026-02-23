@@ -1,17 +1,33 @@
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
 
 export default class extends BaseSeeder {
   async run() {
-    const user = await User.create({
-      name: 'MICHEL BUHENDWA',
-      email: 'michel.buhendwa@example.com',
-      password: await hash.make('password'),
-    })
+    const email = 'michel.buhendwa@example.com'
+    const password = 'admin1234'
+    const user = await User.findBy('email', email)
 
-    await user.related('role').create({
-      name: 'ADMIN',
-    })
+    if (user) {
+      user.merge({ name: 'MICHEL BUHENDWA', password })
+      await user.save()
+    } else {
+      await User.create({
+        name: 'MICHEL BUHENDWA',
+        email,
+        password,
+      })
+    }
+
+    const savedUser = user ?? (await User.findByOrFail('email', email))
+
+    const existingRole = await savedUser.related('role').query().first()
+    if (existingRole) {
+      existingRole.merge({ name: 'ADMIN' })
+      await existingRole.save()
+    } else {
+      await savedUser.related('role').create({
+        name: 'ADMIN',
+      })
+    }
   }
 }

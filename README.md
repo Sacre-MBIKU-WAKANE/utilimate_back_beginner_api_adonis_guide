@@ -942,28 +942,49 @@ Fichier genere :
 ### 2) Ecrire le seeder
 ```ts
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
-import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
 
 export default class extends BaseSeeder {
   async run() {
-    const user = await User.create({
-      name: 'MICHEL BUHENDWA',
-      email: 'michel.buhendwa@example.com',
-      password: await hash.make('password'),
-    })
+    const email = 'michel.buhendwa@example.com'
+    const password = 'admin1234'
+    const user = await User.findBy('email', email)
 
-    await user.related('role').create({
-      name: 'ADMIN',
-    })
+    if (user) {
+      user.merge({ name: 'MICHEL BUHENDWA', password })
+      await user.save()
+    } else {
+      await User.create({
+        name: 'MICHEL BUHENDWA',
+        email,
+        password,
+      })
+    }
+
+    const savedUser = user ?? (await User.findByOrFail('email', email))
+
+    const existingRole = await savedUser.related('role').query().first()
+    if (existingRole) {
+      existingRole.merge({ name: 'ADMIN' })
+      await existingRole.save()
+    } else {
+      await savedUser.related('role').create({
+        name: 'ADMIN',
+      })
+    }
   }
 }
 ```
 
 **Pourquoi utiliser `hash` ?**
 On ne stocke **jamais** un mot de passe en clair.  
-`hash.make(...)` transforme le mot de passe en une valeur chiffrée et irreversible.  
-Ainsi, meme si la base est compromise, les mots de passe restent difficiles a exploiter.
+Avec `withAuthFinder`, Adonis **hash automatiquement** le champ `password` avant de sauvegarder.  
+Tu n'as donc pas besoin d'appeler `hash.make(...)` quand tu utilises `User.create(...)`.
+
+Utilise `hash` uniquement si tu bypasses les hooks (ex: `query().update(...)`) ou pour verifier un mot de passe.
+
+**Mot de passe du seed**
+L'utilisateur admin est cree avec le mot de passe : `admin1234`.
 
 ### 3) Executer le seeder
 ```bash
@@ -1145,3 +1166,78 @@ Dans `resources/views/partials/header.edge` :
 ```edge
 <a href="/login">Connexion</a>
 ```
+
+---
+
+## Etape 11 - Utiliser les models pour l'inscription et la connexion
+
+### Objectif
+Passer du tableau en memoire aux **models Lucid** pour sauvegarder et lire depuis la base.
+
+### 1) Ce qu'on faisait avant (memoire)
+Dans la version precedente, on stockait les utilisateurs dans un tableau :
+```ts
+// type User = { id: number; name: string; email: string; password: string }
+// const users: User[] = []
+```
+
+### 2) Inscription avec `User` (base de donnees)
+```ts
+const payload = await request.validateUsing(registerValidator)
+
+const user = await User.create({
+  name: payload.name,
+  email: payload.email,
+  password: payload.password,
+})
+
+await user.related('role').create({
+  name: 'APPRENANTS',
+})
+```
+
+### 3) Connexion avec `User`
+```ts
+const payload = await request.validateUsing(loginValidator)
+const user = await User.findBy('email', payload.email)
+
+if (!user) {
+  return response.unauthorized({ message: 'Email ou mot de passe incorrect' })
+}
+
+const isValidPassword = await user.verifyPassword(payload.password)
+if (!isValidPassword) {
+  return response.unauthorized({ message: 'Email ou mot de passe incorrect' })
+}
+```
+
+### 4) A retenir
+- Le **tableau en memoire** est utile pour apprendre, mais les donnees disparaissent au redemarrage.
+- Avec Lucid, les donnees sont persistantes et reutilisables.
+
+### 5) `hash.verify` vs `User.verifyCredentials`
+
+#### `hash.verify(hash, plainPassword)`
+- Verifie un mot de passe **a partir d'un hash deja connu**.
+- Tu dois **deja avoir le user** (ou le hash) en main.
+- Ne fait **aucune** recherche en base.
+
+Usage :
+```ts
+const isValid = await hash.verify(user.password, payload.password)
+```
+
+#### `User.verifyCredentials(email, password)`
+- Fourni par `withAuthFinder`.
+- **Cherche le user** par `email` et **verifie** le mot de passe en une seule ligne.
+- Protege contre les attaques par timing (il hash meme si l'utilisateur n'existe pas).
+- **Leve une exception** si les identifiants sont invalides.
+
+Usage :
+```ts
+const user = await User.verifyCredentials(payload.email, payload.password)
+```
+
+#### Quand utiliser quoi ?
+- Utilise **`User.verifyCredentials`** pour un login classique (email + password) : simple et safe.
+- Utilise **`hash.verify`** (ou `user.verifyPassword`) si tu as **deja recupere** l'utilisateur autrement.

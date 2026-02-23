@@ -13,6 +13,9 @@ export default class SilentAuthMiddleware {
     next: NextFn,
   ) {
     await ctx.auth.check()
+    if (ctx.auth.user && !ctx.auth.user.role) {
+      await ctx.auth.user.load('role')
+    }
     ctx.view.share({ auth: ctx.auth })
 
     return next()

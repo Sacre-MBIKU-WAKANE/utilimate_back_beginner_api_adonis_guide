@@ -13,6 +13,11 @@
           <li>
             <a href="/modules">Modules</a>
           </li>
+          @if(auth?.user?.role?.name === 'ADMIN')
+            <li>
+              <a href="/modules/create">Creer module</a>
+            </li>
+          @end
         @end
       </ul>
 
@@ -25,6 +30,18 @@
         </li>
         <li>
           <a href="/register">Inscription</a>
+        </li>
+      @else
+        <li class="text-sm text-slate-600">
+          Bonjour, {{ auth.user.name }}
+        </li>
+        <li>
+          <form action="/logout" method="POST">
+            {{csrfField()}}
+            <button class="text-sm text-slate-600 hover:text-slate-900" type="submit">
+              Deconnexion
+            </button>
+          </form>
         </li>
       @end
    

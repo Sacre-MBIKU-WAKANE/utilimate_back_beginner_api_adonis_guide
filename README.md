@@ -1302,3 +1302,106 @@ Deux vues simples :
 - `resources/views/pages/modules.edge`
 
 Elles sont accessibles uniquement si l'utilisateur est connecte.
+
+---
+
+## Etape 13 - Creation de module reservee a l'ADMIN
+
+### Objectif
+Autoriser uniquement les admins a voir le formulaire de creation de module et a le soumettre.
+
+### 1) Middleware admin
+Creer un middleware qui verifie le role :
+
+```ts
+// app/middleware/admin_middleware.ts
+const user = ctx.auth.user
+
+if (!user) {
+  return ctx.response.redirect('/login')
+}
+
+if (!user.role) {
+  await user.load('role')
+}
+
+if (user.role?.name !== 'ADMIN') {
+  return ctx.response.forbidden('Acces reserve aux administrateurs')
+}
+```
+
+### 2) Routes protegees
+```ts
+router.get('/modules/create', [ModulesController, 'showCreate'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+
+router.post('/modules', [ModulesController, 'store'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+```
+
+### 3) Formulaire de creation
+Vue : `resources/views/pages/modules_create.edge`
+
+```edge
+<form action="/modules" method="POST">
+  {{csrfField()}}
+  <!-- title + description -->
+</form>
+```
+
+### 4) Validation + creation
+Dans le controller :
+```ts
+const payload = await request.validateUsing(moduleValidator)
+await Module.create({
+  title: payload.title,
+  description: payload.description,
+})
+```
+
+### 5) Lien visible uniquement pour l'admin
+Dans le header :
+
+```edge
+@if(auth?.user?.role?.name === 'ADMIN')
+  <a href="/modules/create">Creer module</a>
+@end
+```
+
+---
+
+## Etape 14 - Logout + message de bienvenue
+
+### Objectif
+Ajouter la deconnexion, afficher un message de bienvenue et rediriger vers `/login` si la session expire.
+
+### 1) Route /logout
+```ts
+router.post('/logout', [UsersController, 'logout']).use(middleware.auth())
+```
+
+Controller :
+```ts
+await auth.use('web').logout()
+return response.redirect('/login')
+```
+
+### 2) Message de bienvenue
+Dans le header :
+```edge
+@if(auth?.user)
+  <span>Bonjour, {{ auth.user.name }}</span>
+@end
+```
+
+### 3) Redirection automatique si session expire
+Le middleware `auth` est deja configure pour rediriger vers `/login` :
+
+```ts
+// app/middleware/auth_middleware.ts
+redirectTo = '/login'
+```
+
+Toutes les routes protegees avec `middleware.auth()` utiliseront cette redirection.

@@ -9,8 +9,8 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
-import UsersController from '#controllers/users_controller'
-import ModulesController from '#controllers/modules_controller'
+const UsersController = () => import('#controllers/users_controller')
+const ModulesController = () => import('#controllers/modules_controller')
 
 function renderHome(ctx) {
   return ctx.view.render('pages/home')
@@ -23,5 +23,20 @@ router.post('/login', [UsersController, 'login'])
 router.post('/logout', [UsersController, 'logout']).use(middleware.auth())
 router.get('/apprenants', [UsersController, 'showApprenants']).use(middleware.auth())
 router.get('/modules', [UsersController, 'showModules']).use(middleware.auth())
-router.get('/modules/create', [ModulesController, 'showCreate']).use(middleware.auth()).use(middleware.admin())
+router
+  .get('/modules/create', [ModulesController, 'showCreate'])
+  .use(middleware.auth())
+  .use(middleware.admin())
 router.post('/modules', [ModulesController, 'store']).use(middleware.auth()).use(middleware.admin())
+router
+  .get('/modules/:id/edit', [ModulesController, 'showEdit'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+router
+  .put('/modules/:id', [ModulesController, 'update'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+router
+  .delete('/modules/:id', [ModulesController, 'destroy'])
+  .use(middleware.auth())
+  .use(middleware.admin())

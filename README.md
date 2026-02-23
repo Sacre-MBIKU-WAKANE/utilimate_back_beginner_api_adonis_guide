@@ -1480,3 +1480,82 @@ Points importants :
 - **Auth** = verifier l'identite
 - **Validation** = filtrer et securiser les entrees
 - **Middleware** = proteger les routes et appliquer des regles globales
+
+---
+
+## Etape 16 - Modifier et supprimer un module (admin only)
+
+### Objectif
+Permettre aux administrateurs de **modifier** et **supprimer** les modules.
+
+### 1) Routes protegees (admin)
+```ts
+router.get('/modules/:id/edit', [ModulesController, 'showEdit'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+
+router.put('/modules/:id', [ModulesController, 'update'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+
+router.delete('/modules/:id', [ModulesController, 'destroy'])
+  .use(middleware.auth())
+  .use(middleware.admin())
+```
+
+### 2) Controller
+```ts
+async showEdit({ params, view, response }: HttpContext) {
+  const moduleItem = await Module.find(params.id)
+  if (!moduleItem) return response.notFound('Module introuvable')
+  return view.render('pages/modules_edit', { moduleItem })
+}
+
+async update({ params, request, response, view }: HttpContext) {
+  const moduleItem = await Module.find(params.id)
+  if (!moduleItem) return response.notFound('Module introuvable')
+
+  const payload = await request.validateUsing(moduleValidator)
+  moduleItem.merge(payload)
+  await moduleItem.save()
+
+  return response.redirect('/modules')
+}
+
+async destroy({ params, response }: HttpContext) {
+  const moduleItem = await Module.find(params.id)
+  if (!moduleItem) return response.notFound('Module introuvable')
+  await moduleItem.delete()
+  return response.redirect('/modules')
+}
+```
+
+### 3) Vue d'edition
+Fichier : `resources/views/pages/modules_edit.edge`
+
+```edge
+<form action="/modules/{{ moduleItem.id }}" method="POST">
+  {{csrfField()}}
+  {{method('PUT')}}
+  <!-- title + description -->
+</form>
+```
+
+### 4) Boutons d'action dans la liste
+Dans `resources/views/pages/modules.edge`, on affiche les actions pour l'admin :
+
+```edge
+@if(auth?.user?.role?.name === 'ADMIN')
+  <a href="/modules/{{ moduleItem.id }}/edit">Modifier</a>
+  <form action="/modules/{{ moduleItem.id }}" method="POST">
+    {{csrfField()}}
+    {{method('DELETE')}}
+    <button type="submit">Supprimer</button>
+  </form>
+@end
+```
+
+**Pourquoi `{{method('PUT')}}` / `{{method('DELETE')}}` ?**
+Les formulaires HTML n'acceptent que **GET** et **POST**.  
+Adonis fournit `{{method('PUT')}}` / `{{method('DELETE')}}` pour **simuler** ces verbes via un champ cache (`_method`).  
+Le serveur lit ce champ et traite la requete comme un **PUT** ou un **DELETE**.

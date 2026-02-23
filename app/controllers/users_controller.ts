@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import hash from '@adonisjs/core/services/hash'
 import User from '#models/user'
+import Module from '#models/module'
 import { registerValidator } from '#validators/register_validator'
 import { loginValidator } from '#validators/login_validator'
 
@@ -51,7 +52,8 @@ export default class UsersController {
   }
 
   async showModules({ view }: HttpContext) {
-    return view.render('pages/modules')
+    const modules = await Module.all()
+    return view.render('pages/modules', { modules })
   }
 
   async store({ request, response, view }: HttpContext) {

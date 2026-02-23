@@ -53,4 +53,59 @@ export default class ModulesController {
 
     return response.redirect('/modules')
   }
+
+  async showEdit({ params, view, response }: HttpContext) {
+    const moduleItem = await Module.find(params.id)
+
+    if (!moduleItem) {
+      return response.notFound('Module introuvable')
+    }
+
+    return view.render('pages/modules_edit', {
+      moduleItem,
+    })
+  }
+
+  async update({ params, request, response, view }: HttpContext) {
+    const moduleItem = await Module.find(params.id)
+
+    if (!moduleItem) {
+      return response.notFound('Module introuvable')
+    }
+
+    let payload: { title: string; description: string }
+    try {
+      payload = await request.validateUsing(moduleValidator)
+    } catch (error) {
+      const errors = normalizeErrors(error)
+      return response.status(422).send(
+        await view.render('pages/modules_edit', {
+          moduleItem,
+          errors,
+          errorMap: mapErrors(errors),
+          values: request.only(['title', 'description']),
+        })
+      )
+    }
+
+    moduleItem.merge({
+      title: payload.title,
+      description: payload.description,
+    })
+    await moduleItem.save()
+
+    return response.redirect('/modules')
+  }
+
+  async destroy({ params, response }: HttpContext) {
+    const moduleItem = await Module.find(params.id)
+
+    if (!moduleItem) {
+      return response.notFound('Module introuvable')
+    }
+
+    await moduleItem.delete()
+
+    return response.redirect('/modules')
+  }
 }

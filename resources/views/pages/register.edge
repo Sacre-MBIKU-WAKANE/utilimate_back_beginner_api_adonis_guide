@@ -7,7 +7,7 @@
     </p>
 
     <form class="mt-6 space-y-4" action="/users" method="POST">
-      @csrf
+      {{csrfField()}}
 
       <div class="space-y-1">
         <label class="text-sm font-medium" for="name">Nom complet</label>

@@ -310,7 +310,7 @@ Chemin : `resources/views/pages/register.edge`
     </p>
 
     <form class="mt-6 space-y-4" action="/users" method="POST">
-      @csrf
+      {{csrfField()}}
 
       <div class="space-y-1">
         <label class="text-sm font-medium" for="name">Nom complet</label>
@@ -364,15 +364,15 @@ Chemin : `resources/views/pages/register.edge`
 - `action="/users"` signifie que le formulaire enverra la requete HTTP vers l'URL `/users`.
 - `method="POST"` indique que c'est une requete de creation (elle correspond a `router.post('/users', ...)`).
 
-### 8.2) Pourquoi `@csrf` est important (SSR)
-`@csrf` genere un champ cache avec un **token CSRF**.  
+### 8.2) Pourquoi `{{csrfField()}}` est important (SSR)
+`{{csrfField()}}` genere un champ cache avec un **token CSRF**.  
 Ce token permet au serveur de verifier que le formulaire vient bien de ton site (et pas d'un site malveillant).
 
-Sans `@csrf`, une requete POST peut etre :
+Sans `{{csrfField()}}`, une requete POST peut etre :
 - **refusee par le serveur** si la protection CSRF est active,
 - **vulnerable aux attaques CSRF** : un site externe peut forcer un utilisateur connecte a envoyer un formulaire a sa place.
 
-### 8.3) Et si on ne veut pas utiliser `@csrf` ?
+### 8.3) Et si on ne veut pas utiliser `{{csrfField()}}` ?
 Tu dois **desactiver la protection CSRF** pour la route ou globalement (dans la configuration de Shield).  
 Sinon, le serveur refusera les requetes POST sans token.
 

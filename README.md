@@ -525,6 +525,17 @@ table.timestamp('created_at')
 table.timestamp('updated_at')
 ```
 
+**Si ta migration initiale contient `full_name`**
+Tu as deux options :
+- renommer `full_name` en `name` via une migration d'alteration ;
+- ou **mapper** la colonne dans le modele.
+
+Exemple de mapping dans le modele :
+```ts
+@column({ columnName: 'full_name' })
+declare name: string
+```
+
 ### 2.1) Comprendre `table` et `table.increments('id')`
 Dans `this.schema.createTable('users', (table) => { ... })`, l'argument `table` est un **table builder**.  
 Il sert a definir les colonnes et leurs contraintes (ex: `string`, `integer`, `notNullable`, etc.).
@@ -908,3 +919,58 @@ Explication :
 - `references('id')` + `inTable(...)` : cree la cle etrangere.
 - `onDelete('CASCADE')` : supprime la relation si le user/module est supprime.
 - `unique(['user_id', 'module_id'])` : empeche les doublons.
+
+---
+
+## Etape 9 - Seeder d'un admin (MICHEL BUHENDWA)
+
+### Objectif
+Creer un utilisateur admin par defaut avec le role `ADMIN`.
+
+### C'est quoi un seed ?
+Un **seed** (ou seeder) est un script qui **injecte des donnees** dans la base.  
+Il sert a initialiser un projet (ex: admin par defaut, roles, modules) ou a creer des donnees de test.
+
+### 1) Creer le seeder
+```bash
+node ace make:seeder user
+```
+
+Fichier genere :
+`database/seeders/user_seeder.ts`
+
+### 2) Ecrire le seeder
+```ts
+import { BaseSeeder } from '@adonisjs/lucid/seeders'
+import hash from '@adonisjs/core/services/hash'
+import User from '#models/user'
+
+export default class extends BaseSeeder {
+  async run() {
+    const user = await User.create({
+      name: 'MICHEL BUHENDWA',
+      email: 'michel.buhendwa@example.com',
+      password: await hash.make('password'),
+    })
+
+    await user.related('role').create({
+      name: 'ADMIN',
+    })
+  }
+}
+```
+
+**Pourquoi utiliser `hash` ?**
+On ne stocke **jamais** un mot de passe en clair.  
+`hash.make(...)` transforme le mot de passe en une valeur chiffrée et irreversible.  
+Ainsi, meme si la base est compromise, les mots de passe restent difficiles a exploiter.
+
+### 3) Executer le seeder
+```bash
+node ace db:seed
+```
+
+Si tu veux lancer un seeder precis, tu peux utiliser :
+```bash
+node ace db:seed --files "database/seeders/user_seeder.ts"
+```

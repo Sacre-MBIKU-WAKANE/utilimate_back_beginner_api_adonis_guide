@@ -191,6 +191,254 @@ Si tout est correct, tu verras la page d'accueil avec le header et le footer.
 
 ---
 
+## Etape 3 - Controller User + page d'inscription + stockage en memoire
+
+### Objectif
+Creer un controller `User`, exposer deux routes, afficher un formulaire d'inscription et simuler l'enregistrement d'un utilisateur dans un tableau en memoire.
+
+### 1) C'est quoi un controller ?
+Un **controller** est une classe qui regroupe la logique d'une fonctionnalite ou d'une ressource.  
+Au lieu d'ecrire toute la logique dans `routes.ts`, on delegue a des methodes claires et reutilisables.
+
+**Avantages d'un module dedie**
+- **Separation des responsabilites** : les routes restent lisibles, la logique va dans le controller.
+- **Lisibilite** : chaque ressource a son fichier et ses methodes.
+- **Testabilite** : plus simple d'ecrire des tests sur des methodes isolees.
+- **Evolution** : on ajoute des methodes sans surcharger `routes.ts`.
+
+### 2) Creer le controller avec le CLI
+Commande :
+```bash
+node ace make:controller users
+```
+
+Fichier genere :
+`app/controllers/users_controller.ts`
+
+### 3) Exporter le controller
+Dans AdonisJS, un controller est exporte via `export default` :
+
+```ts
+export default class UsersController {
+  // ...
+}
+```
+
+### 4) Importer le controller dans `routes.ts`
+On utilise l'alias `#controllers` pour l'import :
+
+```ts
+import UsersController from '#controllers/users_controller'
+```
+
+### 5) Specifier la methode dans une route
+On passe un tableau `[Controller, 'methode']` :
+
+```ts
+router.get('/register', [UsersController, 'showRegister'])
+router.post('/users', [UsersController, 'store'])
+```
+
+### 6) Ajouter les deux routes
+Dans `start/routes.ts`, voici le bloc complet pour l'inscription :
+
+```ts
+import router from '@adonisjs/core/services/router'
+import UsersController from '#controllers/users_controller'
+
+function renderHome(ctx) {
+  return ctx.view.render('pages/home')
+}
+
+router.get('/', renderHome)
+router.get('/register', [UsersController, 'showRegister'])
+router.post('/users', [UsersController, 'store'])
+```
+
+### 7) Ecrire la logique du controller
+On utilise un tableau en memoire pour stocker des utilisateurs (simulation).
+
+Chemin : `app/controllers/users_controller.ts`
+
+```ts
+import type { HttpContext } from '@adonisjs/core/http'
+
+type User = {
+  id: number
+  name: string
+  email: string
+  password: string
+}
+
+const users: User[] = []
+
+export default class UsersController {
+  async showRegister({ view }: HttpContext) {
+    return view.render('pages/register')
+  }
+
+  async store({ request, response }: HttpContext) {
+    const payload = request.only(['name', 'email', 'password'])
+    const user: User = {
+      id: users.length + 1,
+      name: payload.name,
+      email: payload.email,
+      password: payload.password,
+    }
+
+    users.push(user)
+
+    return response.json({
+      message: 'Utilisateur enregistre en memoire',
+      user,
+      users,
+    })
+  }
+}
+```
+
+### 8) Creer la page d'inscription
+Chemin : `resources/views/pages/register.edge`
+
+```edge
+@component("layouts/app", {title: "Inscription"})
+@slot('main')
+  <div class="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <h1 class="text-2xl font-semibold">Inscription</h1>
+    <p class="mt-1 text-sm text-slate-600">
+      Creez un compte en remplissant ce formulaire.
+    </p>
+
+    <form class="mt-6 space-y-4" action="/users" method="POST">
+      @csrf
+
+      <div class="space-y-1">
+        <label class="text-sm font-medium" for="name">Nom complet</label>
+        <input
+          id="name"
+          name="name"
+          type="text"
+          class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+          placeholder="Jean Dupont"
+          required
+        />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-medium" for="email">Email</label>
+        <input
+          id="email"
+          name="email"
+          type="email"
+          class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+          placeholder="jean@exemple.com"
+          required
+        />
+      </div>
+
+      <div class="space-y-1">
+        <label class="text-sm font-medium" for="password">Mot de passe</label>
+        <input
+          id="password"
+          name="password"
+          type="password"
+          class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
+          placeholder="••••••••"
+          required
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center rounded-md bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+      >
+        Creer mon compte
+      </button>
+    </form>
+  </div>
+@endslot
+@end
+```
+
+### 8.1) Comprendre `action="/users"` et `method="POST"`
+- `action="/users"` signifie que le formulaire enverra la requete HTTP vers l'URL `/users`.
+- `method="POST"` indique que c'est une requete de creation (elle correspond a `router.post('/users', ...)`).
+
+### 8.2) Pourquoi `@csrf` est important (SSR)
+`@csrf` genere un champ cache avec un **token CSRF**.  
+Ce token permet au serveur de verifier que le formulaire vient bien de ton site (et pas d'un site malveillant).
+
+Sans `@csrf`, une requete POST peut etre :
+- **refusee par le serveur** si la protection CSRF est active,
+- **vulnerable aux attaques CSRF** : un site externe peut forcer un utilisateur connecte a envoyer un formulaire a sa place.
+
+### 8.3) Et si on ne veut pas utiliser `@csrf` ?
+Tu dois **desactiver la protection CSRF** pour la route ou globalement (dans la configuration de Shield).  
+Sinon, le serveur refusera les requetes POST sans token.
+
+Fichier : `config/shield.ts`  
+Section : `csrf`
+
+Deux options possibles :
+
+1) **Desactiver globalement**
+```ts
+csrf: {
+  enabled: false,
+  // ...
+}
+```
+
+2) **Exclure seulement certaines routes**
+```ts
+csrf: {
+  enabled: true,
+  exceptRoutes: ['/users'],
+  // ...
+}
+```
+
+**Risques sans CSRF en SSR**
+- Soumissions de formulaires non voulues
+- Actions sensibles executees a l'insu de l'utilisateur connecte
+
+### 9) A retenir
+- Le stockage en memoire est **temporaire** : il disparait au redemarrage du serveur.
+- Le formulaire poste vers `/users` et renvoie du JSON pour verifier l'ajout.
+- En vrai projet, **ne stocke jamais un mot de passe en clair**. Ici c'est uniquement pour apprendre.
+
+### 10) Comprendre `request.only(...)`
+`request.only(['name', 'email', 'password'])` permet de **filtrer** le body et ne garder que certains champs.  
+C'est pratique pour eviter d'enregistrer des donnees non prevues par le formulaire.
+
+Exemple :
+```ts
+const payload = request.only(['name', 'email', 'password'])
+```
+
+### 11) Alternative : `request.body()`
+Si tu veux lire tout le body tel quel, tu peux utiliser `request.body()` :
+
+```ts
+const body = request.body()
+// body.name, body.email, body.password
+```
+
+En pratique, on prefere souvent `request.only(...)` pour controler ce qu'on accepte.
+
+### 12) Lien vers /register dans le header
+On a modifie le header pour pointer vers la page d'inscription :
+
+Chemin : `resources/views/partials/header.edge`
+
+```edge
+<li>
+  <a href="/register">Inscription</a>
+</li>
+```
+
+---
+
 ## Prochaine etape
 
-Quand tu es pret, on passe a l'etape 3 (par exemple : structure du projet, creation des routes REST, ou configuration de la base de donnees).
+Quand tu es pret, on passe a l'etape 4 (par exemple : validation, base de donnees, ou routes REST completes).

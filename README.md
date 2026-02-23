@@ -1405,3 +1405,78 @@ redirectTo = '/login'
 ```
 
 Toutes les routes protegees avec `middleware.auth()` utiliseront cette redirection.
+
+---
+
+## Etape 15 - Session, authentification, validation, middleware (explications)
+
+### 1) C'est quoi une session ?
+Une **session** est un mecanisme qui permet de **reconnaitre un utilisateur** entre plusieurs requetes.  
+Quand l'utilisateur se connecte :
+- le serveur **cree une session**,
+- un cookie est place dans le navigateur,
+- a chaque requete suivante, le cookie permet de retrouver l'utilisateur.
+
+### 2) Pourquoi utiliser une session ?
+- **UX** : l'utilisateur reste connecte sans devoir se reauthentifier a chaque page.
+- **SSR** : tres pratique pour afficher/masquer des elements (`auth.user` dans les vues).
+- **Securite** : associee a CSRF, elle protege les formulaires.
+
+### 3) C'est quoi l'authentification ?
+L'authentification consiste a **verifier l'identite** de l'utilisateur.  
+Dans notre cas, c'est la methode **locale** : `email + mot de passe`.
+
+### 4) Methode locale (email + mot de passe)
+On parle de **methode locale** quand on valide :
+- un identifiant (email)
+- un secret (mot de passe)
+
+Exemple :
+```ts
+const user = await User.verifyCredentials(email, password)
+```
+
+### 5) C'est quoi la validation ?
+La validation verifie que les donnees recues sont **correctes** avant de les utiliser.
+Sans validation, tu risques :
+- erreurs logiques
+- donnees incoherentes
+- failles de securite
+
+### 6) C'est quoi un middleware ?
+Un **middleware** est une couche qui s'execute **avant** (et parfois apres) le controller.
+Exemples :
+- `auth` bloque une route si l'utilisateur n'est pas connecte
+- `admin` bloque si le role n'est pas ADMIN
+- `shield` gere la securite (CSRF, headers, etc.)
+
+### 7) Configuration des sessions (Adonis)
+Fichier : `config/session.ts`
+
+Points importants :
+- `enabled: true` : active les sessions
+- `cookieName` : nom du cookie de session
+- `age` : duree de vie
+- `clearWithBrowser` : supprime la session a la fermeture du navigateur
+- `store` : type de stockage (ici `cookie`)
+
+### 8) Sessions vs Tokens
+**Session (cookie)**
+- **Stateful** : le serveur se souvient de la session
+- Ideal pour SSR
+- CSRF obligatoire pour les formulaires
+
+**Token (API)**
+- **Stateless** : pas d'etat cote serveur
+- Ideal pour mobile / SPA / API externe
+- Pas de CSRF, mais gestion du **refresh token** souvent necessaire
+
+### 9) Quand utiliser quoi ?
+- **Site SSR classique** : session + cookies (ce qu'on fait ici)
+- **API publique / mobile** : tokens (JWT, opaque tokens)
+
+### 10) Resume
+- **Session** = garder l'utilisateur connecte
+- **Auth** = verifier l'identite
+- **Validation** = filtrer et securiser les entrees
+- **Middleware** = proteger les routes et appliquer des regles globales

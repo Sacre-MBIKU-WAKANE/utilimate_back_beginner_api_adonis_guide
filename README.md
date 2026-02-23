@@ -680,3 +680,102 @@ Explication de chaque partie :
 - `references('id')` : `user_id` reference la colonne `id`.
 - `inTable('users')` : la cle referencee se trouve dans la table `users`.
 - `onDelete('CASCADE')` : si un user est supprime, son role est supprime automatiquement.
+
+---
+
+## Etape 7 - Modele Actualite + relation hasMany
+
+### Objectif
+Permettre aux apprenants de publier des actualites.  
+Un `User` peut publier plusieurs `Actualite` (relation **hasMany**).
+
+### 1) Creer le modele + migration
+```bash
+node ace make:model Actualite -m
+```
+
+### 2) Definir la table `actualites`
+```ts
+table.increments('id')
+table
+  .integer('user_id')
+  .notNullable()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+table.string('title').notNullable()
+table.text('content').notNullable()
+
+table.timestamp('created_at')
+table.timestamp('updated_at')
+```
+
+### 3) Definir la relation dans les modeles
+Dans `Actualite` (belongsTo) :
+
+```ts
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import User from '#models/user'
+
+export default class Actualite extends BaseModel {
+  @column({ isPrimary: true })
+  declare id: number
+
+  @column({ columnName: 'user_id' })
+  declare userId: number
+
+  @column()
+  declare title: string
+
+  @column()
+  declare content: string
+
+  @belongsTo(() => User)
+  declare user: BelongsTo<typeof User>
+}
+```
+
+Dans `User` (hasMany) :
+
+```ts
+import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany } from '@adonisjs/lucid/types/relations'
+import Actualite from '#models/actualite'
+
+export default class User extends BaseModel {
+  @hasMany(() => Actualite)
+  declare actualites: HasMany<typeof Actualite>
+}
+```
+
+### 4) Explications detaillees (comme hasOne)
+
+#### 4.1) Qu'est-ce que `hasMany` ?
+`hasMany` signifie : **un User peut avoir plusieurs Actualites**.  
+On l'ecrit dans `User` car c'est l'entite "parente" qui publie plusieurs actualites.
+
+#### 4.2) Pourquoi `belongsTo` dans Actualite ?
+`belongsTo` signifie : **l'Actualite appartient a un User**.  
+On l'ecrit dans `Actualite` parce que la table `actualites` porte la **cle etrangere** `user_id`.
+
+#### 4.3) Pourquoi la cle etrangere est dans `actualites` ?
+Chaque actualite doit etre rattachee a **un seul user**.  
+Donc `user_id` est stocke dans `actualites`, et plusieurs lignes peuvent pointer vers le meme user.
+
+#### 4.4) Detail des methodes dans la migration
+```ts
+table
+  .integer('user_id')
+  .notNullable()
+  .references('id')
+  .inTable('users')
+  .onDelete('CASCADE')
+```
+
+Explication :
+- `integer('user_id')` : cree une colonne `user_id` entiere.
+- `notNullable()` : l'actualite doit avoir un user.
+- `references('id')` : `user_id` reference `users.id`.
+- `inTable('users')` : la cle referencee se trouve dans la table `users`.
+- `onDelete('CASCADE')` : si un user est supprime, ses actualites sont supprimees.

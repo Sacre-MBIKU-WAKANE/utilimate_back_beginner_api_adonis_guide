@@ -1241,3 +1241,64 @@ const user = await User.verifyCredentials(payload.email, payload.password)
 #### Quand utiliser quoi ?
 - Utilise **`User.verifyCredentials`** pour un login classique (email + password) : simple et safe.
 - Utilise **`hash.verify`** (ou `user.verifyPassword`) si tu as **deja recupere** l'utilisateur autrement.
+
+---
+
+## Etape 12 - Gestion de session (auth) + pages protegees
+
+### Objectif
+Si l'utilisateur est connecte, il peut acceder a **Apprenants** et **Modules**.  
+Sinon, il ne voit que l'accueil.
+
+### 1) Middleware d'authentification
+Dans `start/routes.ts`, on protege les routes avec `middleware.auth()` :
+
+```ts
+import { middleware } from '#start/kernel'
+
+router.get('/apprenants', [UsersController, 'showApprenants']).use(middleware.auth())
+router.get('/modules', [UsersController, 'showModules']).use(middleware.auth())
+```
+
+### 2) Login avec session
+Dans `UsersController`, une fois les identifiants valides :
+
+```ts
+await auth.use('web').login(user)
+return response.redirect('/apprenants')
+```
+
+La session est stockee via le guard `web` (configure dans `config/auth.ts`).
+
+### 3) Rendre l'auth disponible dans les vues
+On utilise un middleware silencieux pour exposer `auth` aux templates :
+
+```ts
+// app/middleware/silent_auth_middleware.ts
+await ctx.auth.check()
+ctx.view.share({ auth: ctx.auth })
+```
+
+Et on l'enregistre dans `start/kernel.ts` (router middleware).
+
+### 4) Afficher / masquer les liens dans le header
+Dans `resources/views/partials/header.edge` :
+
+```edge
+@if(auth?.user)
+  <a href="/apprenants">Apprenants</a>
+  <a href="/modules">Modules</a>
+@end
+
+@if(!auth?.user)
+  <a href="/login">Connexion</a>
+  <a href="/register">Inscription</a>
+@end
+```
+
+### 5) Pages protegees
+Deux vues simples :
+- `resources/views/pages/apprenants.edge`
+- `resources/views/pages/modules.edge`
+
+Elles sont accessibles uniquement si l'utilisateur est connecte.

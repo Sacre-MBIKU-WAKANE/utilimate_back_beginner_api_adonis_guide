@@ -13,6 +13,7 @@ export default class SilentAuthMiddleware {
     next: NextFn,
   ) {
     await ctx.auth.check()
+    ctx.view.share({ auth: ctx.auth })
 
     return next()
   }

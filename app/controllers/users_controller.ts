@@ -46,6 +46,14 @@ export default class UsersController {
     return view.render('pages/login')
   }
 
+  async showApprenants({ view }: HttpContext) {
+    return view.render('pages/apprenants')
+  }
+
+  async showModules({ view }: HttpContext) {
+    return view.render('pages/modules')
+  }
+
   async store({ request, response, view }: HttpContext) {
     let payload: { name: string; email: string; password: string }
     try {
@@ -92,7 +100,7 @@ export default class UsersController {
     })
   }
 
-  async login({ request, response, view }: HttpContext) {
+  async login({ request, response, view, auth }: HttpContext) {
     let payload: { email: string; password: string }
     try {
       payload = await request.validateUsing(loginValidator)
@@ -121,13 +129,8 @@ export default class UsersController {
       )
     }
 
-    return response.json({
-      message: 'Connexion reussie',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    })
+    await auth.use('web').login(user)
+
+    return response.redirect('/apprenants')
   }
 }

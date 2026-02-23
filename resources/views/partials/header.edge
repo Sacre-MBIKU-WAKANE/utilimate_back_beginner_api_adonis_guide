@@ -6,23 +6,27 @@
         <li class="">
           <a href="/">Accueil</a>
         </li>
-        <li>
-          <a href="/">Apprenants</a>
-        </li>
-        <li>
-          <a href="/">Modules</a>
-        </li>
+        @if(auth?.user)
+          <li>
+            <a href="/apprenants">Apprenants</a>
+          </li>
+          <li>
+            <a href="/modules">Modules</a>
+          </li>
+        @end
       </ul>
 
      
     </nav>
     <ul>
-      <li>
-        <a href="/login">Connexion</a>
-      </li>
-      <li>
-        <a href="/register">Inscription</a>
-      </li>
+      @if(!auth?.user)
+        <li>
+          <a href="/login">Connexion</a>
+        </li>
+        <li>
+          <a href="/register">Inscription</a>
+        </li>
+      @end
    
     </ul>
   </div>

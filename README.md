@@ -495,6 +495,77 @@ Assure-toi que :
 
 ---
 
-## Prochaine etape
+## Etape 5 - Modele User + migration
 
-Quand tu es pret, on passe a l'etape 5 (migrations + premier modele).
+### Objectif
+Creer le modele `User`, definir un schema minimal (`name`, `email`, `password`) et executer la migration.
+
+### 1) Creer le modele + migration (CLI)
+Commande :
+```bash
+node ace make:model User -m
+```
+
+Cela cree :
+- `app/models/user.ts` (le modele)
+- `database/migrations/<timestamp>_create_users_table.ts` (la migration)
+
+Si le modele existe deja, Adonis peut afficher **SKIPPED** pour le fichier.
+
+### 2) Definir le schema minimal
+Dans la migration, ajoute les colonnes :
+
+```ts
+table.increments('id')
+table.string('name').notNullable()
+table.string('email').notNullable()
+table.string('password').notNullable()
+
+table.timestamp('created_at')
+table.timestamp('updated_at')
+```
+
+### 2.1) Comprendre `table` et `table.increments('id')`
+Dans `this.schema.createTable('users', (table) => { ... })`, l'argument `table` est un **table builder**.  
+Il sert a definir les colonnes et leurs contraintes (ex: `string`, `integer`, `notNullable`, etc.).
+
+`table.increments('id')` cree une colonne auto-incrementee et la marque comme **cle primaire**.  
+En PostgreSQL, cela correspond a un type `serial`.
+
+Docs utiles :
+```
+https://lucid.adonisjs.com/docs/table-builder
+https://lucid.adonisjs.com/docs/schema-builder
+```
+
+Dans le modele `User`, declare les champs :
+
+```ts
+@column()
+declare name: string
+
+@column()
+declare email: string
+
+@column({ serializeAs: null })
+declare password: string
+```
+
+### 2.2) Comprendre `@column()` et `serializeAs: null`
+`@column()` indique a Lucid que la propriete est une **colonne** de la table.  
+Cela ne cree pas la colonne dans la base : les types et contraintes se definissent **dans les migrations**.
+
+`@column({ serializeAs: null })` retire la propriete lors de la **serialisation** du modele en JSON.  
+C'est utile pour eviter d'exposer le mot de passe quand on renvoie un utilisateur via une API.
+
+Docs utiles :
+```
+https://lucid.adonisjs.com/docs/models
+```
+
+### 3) Executer la migration
+```bash
+node ace migration:run
+```
+
+Si la migration echoue, verifie que PostgreSQL tourne, que la base existe et que les variables `DB_*` sont correctes.

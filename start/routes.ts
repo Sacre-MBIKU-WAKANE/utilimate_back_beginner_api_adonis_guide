@@ -16,3 +16,5 @@ function renderHome(ctx) {
 router.get('/', renderHome)
 router.get('/register', [UsersController, 'showRegister'])
 router.post('/users', [UsersController, 'store'])
+router.get('/login', [UsersController, 'showLogin'])
+router.post('/login', [UsersController, 'login'])

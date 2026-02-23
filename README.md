@@ -974,3 +974,174 @@ Si tu veux lancer un seeder precis, tu peux utiliser :
 ```bash
 node ace db:seed --files "database/seeders/user_seeder.ts"
 ```
+
+---
+
+## Etape 10 - Page de connexion + validation (inscription et connexion)
+
+### Objectif
+Ajouter une page de connexion et valider les donnees pour **l'inscription** et la **connexion**.
+
+### C'est quoi la validation ?
+La **validation** consiste a verifier que les donnees recues sont correctes **avant** de les utiliser.  
+Exemples :
+- un email doit etre un vrai email
+- un mot de passe doit avoir une longueur minimale
+- un champ obligatoire ne peut pas etre vide
+
+Sans validation, tu risques d'enregistrer des donnees invalides ou dangereuses.
+
+### Pourquoi Vine ?
+VineJS est la librairie de validation officielle utilisee dans AdonisJS v6.  
+Avantages :
+- syntaxe claire et lisible
+- erreurs de validation standardisees
+- integration directe avec `request.validateUsing`
+- possible d'ajouter des regles perso
+
+### 1) Creer la route de connexion
+Dans `start/routes.ts` :
+
+```ts
+router.get('/login', [UsersController, 'showLogin'])
+router.post('/login', [UsersController, 'login'])
+```
+
+### 2) Creer la page de connexion
+Chemin : `resources/views/pages/login.edge`
+
+```edge
+@component("layouts/app", {title: "Connexion"})
+@slot('main')
+  <form class="mt-6 space-y-4" action="/login" method="POST">
+    {{csrfField()}}
+    <!-- email + password -->
+  </form>
+@endslot
+@end
+```
+
+### 3) Ajouter les validators
+On cree deux validators :
+
+Chemins :
+- `app/validators/register_validator.ts`
+- `app/validators/login_validator.ts`
+
+Tu peux aussi generer un validator via la commande ACE :
+```bash
+node ace make:validator register
+```
+
+Exemple (inscription) :
+```ts
+import vine from '@vinejs/vine'
+
+export const registerValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(2),
+    email: vine.string().trim().email(),
+    password: vine.string().minLength(6),
+  })
+)
+```
+
+### 3.1) Explication detaillee du validator
+```ts
+export const registerValidator = vine.compile(
+  vine.object({
+    name: vine.string().trim().minLength(2),
+    email: vine.string().trim().email(),
+    password: vine.string().minLength(6),
+  })
+)
+```
+
+Explication :
+- `vine.object({ ... })` : definit la forme attendue du payload.
+- `vine.string()` : impose une chaine de caracteres.
+- `.trim()` : retire les espaces en debut et fin.
+- `.minLength(2)` : longueur minimale.
+- `.email()` : format email valide.
+- `vine.compile(...)` : compile le schema pour l'utiliser dans `request.validateUsing(...)`.
+
+Exemple (connexion) :
+```ts
+import vine from '@vinejs/vine'
+
+export const loginValidator = vine.compile(
+  vine.object({
+    email: vine.string().trim().email(),
+    password: vine.string().minLength(6),
+  })
+)
+```
+
+### 4) Utiliser la validation dans le controller
+Dans `app/controllers/users_controller.ts` :
+
+```ts
+const payload = await request.validateUsing(registerValidator)
+```
+
+et pour la connexion :
+
+```ts
+const payload = await request.validateUsing(loginValidator)
+```
+
+**Ce que fait `request.validateUsing(...)`**
+- Il valide les donnees recues avec le schema.
+- Il retourne un `payload` **nettoye** (ex: `trim()` applique).
+- Il leve une erreur si la validation echoue.
+
+### 4.1) Rendre les erreurs de validation (SSR)
+Dans le controller, on capture l'erreur et on renvoie la vue avec les erreurs :
+
+```ts
+try {
+  const payload = await request.validateUsing(registerValidator)
+  // suite logique...
+} catch (error) {
+  const errors = normalizeErrors(error)
+  return response.status(422).send(
+    await view.render('pages/register', {
+      errors,
+      errorMap: mapErrors(errors),
+      values: request.only(['name', 'email']),
+    })
+  )
+}
+```
+
+`normalizeErrors` et `mapErrors` sont de petits helpers pour transformer les erreurs Vine en un format facile a afficher.
+
+Dans la vue, on affiche les erreurs :
+```edge
+@if(errors && errors.length)
+  <ul>
+    @each(error in errors)
+      <li>{{ error.message }}</li>
+    @end
+  </ul>
+@end
+```
+
+Et un message par champ :
+```edge
+@if(errorMap?.email)
+  <p class="text-sm text-red-600">{{ errorMap.email }}</p>
+@end
+```
+
+Pour garder les valeurs deja saisies, on peut utiliser `values` :
+```edge
+<input name="email" value="{{ values?.email ?? '' }}" />
+```
+
+### 5) Mettre a jour le lien du header
+Dans `resources/views/partials/header.edge` :
+
+```edge
+<a href="/login">Connexion</a>
+```

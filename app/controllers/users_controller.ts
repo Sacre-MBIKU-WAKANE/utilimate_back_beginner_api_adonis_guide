@@ -104,6 +104,7 @@ export default class UsersController {
 
   async login({ request, response, view, auth }: HttpContext) {
     let payload: { email: string; password: string }
+
     try {
       payload = await request.validateUsing(loginValidator)
     } catch (error) {
@@ -116,12 +117,21 @@ export default class UsersController {
         })
       )
     }
+    console.log('====================================')
+    console.log({ payload })
+    console.log('====================================')
+
     // const user = await User.findBy('email', payload.email)
     // const isValidPassword = user ? await hash.verify(user.password, payload.password) : false
     const user = await User.verifyCredentials(payload.email, payload.password)
-
+    console.log('====================================')
+    console.log({ user, payload, jdjd: 'jdjdjdj' })
+    console.log('====================================')
     if (!user) {
       const message = 'Email ou mot de passe incorrect'
+      console.log('====================================')
+      console.log({ message })
+      console.log('====================================')
       return response.status(422).send(
         await view.render('pages/login', {
           errors: [{ field: 'email', message }],
@@ -130,7 +140,12 @@ export default class UsersController {
         })
       )
     }
-
+    console.log('====================================')
+    console.log('ohw')
+    console.log('====================================')
+    console.log('====================================')
+    console.log({ user })
+    console.log('====================================')
     await auth.use('web').login(user)
 
     return response.redirect('/apprenants')

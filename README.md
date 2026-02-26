@@ -1523,6 +1523,74 @@ Points importants :
 - **Validation** = filtrer et securiser les entrees
 - **Middleware** = proteger les routes et appliquer des regles globales
 
+### 16) Autorisation avec Bouncer (validation des permissions)
+**Important** : Bouncer ne valide pas les donnees d'un formulaire (ca, c'est Vine).  
+Bouncer sert a **autoriser** une action : "est-ce que cet utilisateur a le droit ?".
+
+#### Installer Bouncer
+```bash
+node ace add @adonisjs/bouncer
+```
+
+Ce setup cree et configure :
+- `app/abilities/main.ts` (abilities)
+- `app/policies/main.ts` (policies)
+- `app/middleware/initialize_bouncer_middleware.ts`
+- enregistrement du middleware dans `start/kernel.ts`
+
+Le middleware `initialize_bouncer_middleware` :
+- cree `ctx.bouncer` pour l'utilisateur connecte,
+- partage les helpers Edge (`@can`, `@cannot`) si tu utilises des vues.
+
+#### Definir une ability
+Une ability est une fonction qui retourne `true` ou `false`.
+Exemple : autoriser uniquement les admins a creer un module.
+
+```ts
+// app/abilities/main.ts
+import { Bouncer } from '@adonisjs/bouncer'
+import User from '#models/user'
+
+export const createModule = Bouncer.ability((user: User) => {
+  return user.role?.name === 'ADMIN'
+})
+```
+
+#### Verifier l'ability dans un controller
+```ts
+import { createModule } from '#abilities/main'
+
+if (await bouncer.denies(createModule)) {
+  return response.forbidden('Acces reserve aux administrateurs')
+}
+```
+
+#### Verifier l'ability via `allows`
+```ts
+if (await bouncer.allows(createModule)) {
+  // autorise
+}
+```
+
+#### Lever une exception automatiquement
+`bouncer.authorize(...)` leve une exception si l'utilisateur n'a pas le droit.
+
+```ts
+await bouncer.authorize(createModule)
+```
+
+#### Utiliser Bouncer dans les vues Edge
+```edge
+@can('createModule')
+  <a href="/modules/create">Creer un module</a>
+@end
+```
+
+#### Pourquoi utiliser Bouncer ?
+- Centralise les regles d'acces au meme endroit
+- Evite de repeter des `if (role === 'ADMIN')` partout
+- Rend les regles faciles a tester et a faire evoluer
+
 ### 11) Configuration de l'authentification (Adonis)
 Dans Adonis v6, l'auth est configuree dans `config/auth.ts`.
 

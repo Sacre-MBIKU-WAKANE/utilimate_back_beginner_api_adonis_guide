@@ -1410,6 +1410,48 @@ Toutes les routes protegees avec `middleware.auth()` utiliseront cette redirecti
 
 ## Etape 15 - Session, authentification, validation, middleware (explications)
 
+### 0) Ajouter l'authentification dans le projet (depuis le debut)
+Si tu pars d'un projet **sans auth**, voici le demarrage rapide :
+
+1) **Installer l'auth**
+```bash
+node ace add @adonisjs/auth
+```
+Choisis **session** comme guard (ideal pour SSR).
+
+2) **Installer la session (si besoin)**
+```bash
+node ace add @adonisjs/session
+```
+
+3) **Verifier les fichiers generes**
+Adonis cree/maj les fichiers suivants :
+- `config/auth.ts` (configuration du guard)
+- `start/kernel.ts` (middleware d'auth)
+- `config/session.ts` (config des sessions)
+
+4) **Configurer les variables d'environnement**
+Dans `.env` :
+```
+SESSION_DRIVER=cookie
+```
+
+5) **Preparer le model User**
+Le model doit avoir au minimum `email` et `password`, et utiliser `withAuthFinder` :
+```ts
+const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
+  uids: ['email'],
+  passwordColumnName: 'password',
+})
+```
+
+6) **Migrer la base**
+```bash
+node ace migration:run
+```
+
+Ensuite tu peux utiliser `auth.use('web').login(user)` pour ouvrir une session.
+
 ### 1) C'est quoi une session ?
 Une **session** est un mecanisme qui permet de **reconnaitre un utilisateur** entre plusieurs requetes.  
 Quand l'utilisateur se connecte :
@@ -1480,6 +1522,58 @@ Points importants :
 - **Auth** = verifier l'identite
 - **Validation** = filtrer et securiser les entrees
 - **Middleware** = proteger les routes et appliquer des regles globales
+
+### 11) Configuration de l'authentification (Adonis)
+Dans Adonis v6, l'auth est configuree dans `config/auth.ts`.
+
+Exemple (guard session) :
+```ts
+import { defineConfig } from '@adonisjs/auth'
+import { sessionGuard, sessionUserProvider } from '@adonisjs/auth/session'
+
+const authConfig = defineConfig({
+  default: 'web',
+  guards: {
+    web: sessionGuard({
+      useRememberMeTokens: false,
+      provider: sessionUserProvider({
+        model: () => import('#models/user'),
+      }),
+    }),
+  },
+})
+```
+
+Points importants :
+- **`default: 'web'`** : guard par defaut.
+- **`sessionGuard(...)`** : utilise les **sessions**.
+- **`sessionUserProvider(...)`** : indique quel **model** est utilise pour charger l'utilisateur.
+
+### 12) Activer les middlewares auth
+Dans `start/kernel.ts`, Adonis initialise l'auth :
+```ts
+router.use([
+  () => import('@adonisjs/auth/initialize_auth_middleware'),
+])
+```
+
+Et on protege les routes avec `middleware.auth()` :
+```ts
+router.get('/apprenants', [UsersController, 'showApprenants'])
+  .use(middleware.auth())
+```
+
+### 13) Cote modele (hash auto)
+Le model `User` utilise `withAuthFinder`, qui :
+- hash automatiquement le mot de passe avant sauvegarde
+- expose `verifyCredentials(...)`
+
+```ts
+const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
+  uids: ['email'],
+  passwordColumnName: 'password',
+})
+```
 
 ---
 

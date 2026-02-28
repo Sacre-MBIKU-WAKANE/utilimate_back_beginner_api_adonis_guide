@@ -85,7 +85,7 @@ export default class UsersController {
     const user = await User.create({
       name: payload.name,
       email: payload.email,
-      password: await hash.make(payload.password),
+      password: payload.password,
     })
 
     await user.related('role').create({

@@ -1196,6 +1196,19 @@ await user.related('role').create({
 })
 ```
 
+**Note importante (hash auto)**
+Ici on passe le mot de passe **en clair** a `User.create(...)` car `withAuthFinder`
+le **hash automatiquement** avant la sauvegarde.
+
+**Controle d'unicite (email)**
+Avant la creation, on verifie si l'email existe deja :
+```ts
+const existingUser = await User.findBy('email', payload.email)
+if (existingUser) {
+  // retourner une erreur dans la vue
+}
+```
+
 ### 3) Connexion avec `User`
 ```ts
 const payload = await request.validateUsing(loginValidator)

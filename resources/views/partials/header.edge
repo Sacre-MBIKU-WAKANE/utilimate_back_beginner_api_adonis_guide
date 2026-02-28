@@ -13,7 +13,7 @@
           <li>
             <a href="/modules">Modules</a>
           </li>
-          @if(auth?.user?.role?.name === 'ADMIN')
+          @can('manageModule')
             <li>
               <a href="/modules/create">Creer module</a>
             </li>

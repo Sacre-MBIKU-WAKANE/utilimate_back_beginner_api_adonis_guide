@@ -1323,35 +1323,36 @@ Elles sont accessibles uniquement si l'utilisateur est connecte.
 ### Objectif
 Autoriser uniquement les admins a voir le formulaire de creation de module et a le soumettre.
 
-### 1) Middleware admin
-Creer un middleware qui verifie le role :
+### 1) Autorisation avec Bouncer
+On autorise l'action via une **ability** (ex: `manageModule`) :
+
+Si Bouncer n'est pas installe :
+```bash
+node ace add @adonisjs/bouncer
+```
 
 ```ts
-// app/middleware/admin_middleware.ts
-const user = ctx.auth.user
+// app/abilities/main.ts
+export const manageModule = Bouncer.ability(async (user: User) => {
+  if (!user.role) {
+    await user.load('role')
+  }
+  return user.role?.name === 'ADMIN'
+})
+```
 
-if (!user) {
-  return ctx.response.redirect('/login')
-}
-
-if (!user.role) {
-  await user.load('role')
-}
-
-if (user.role?.name !== 'ADMIN') {
-  return ctx.response.forbidden('Acces reserve aux administrateurs')
-}
+Dans le controller :
+```ts
+await ctx.bouncer.authorize('manageModule')
 ```
 
 ### 2) Routes protegees
 ```ts
 router.get('/modules/create', [ModulesController, 'showCreate'])
   .use(middleware.auth())
-  .use(middleware.admin())
 
 router.post('/modules', [ModulesController, 'store'])
   .use(middleware.auth())
-  .use(middleware.admin())
 ```
 
 ### 3) Formulaire de creation
@@ -1378,7 +1379,7 @@ await Module.create({
 Dans le header :
 
 ```edge
-@if(auth?.user?.role?.name === 'ADMIN')
+@can('manageModule')
   <a href="/modules/create">Creer module</a>
 @end
 ```
@@ -1502,7 +1503,7 @@ Sans validation, tu risques :
 Un **middleware** est une couche qui s'execute **avant** (et parfois apres) le controller.
 Exemples :
 - `auth` bloque une route si l'utilisateur n'est pas connecte
-- `admin` bloque si le role n'est pas ADMIN
+- `initialize_bouncer` prepare Bouncer pour les autorisations
 - `shield` gere la securite (CSRF, headers, etc.)
 
 ### 7) Configuration des sessions (Adonis)
@@ -1663,30 +1664,31 @@ const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
 ### Objectif
 Permettre aux administrateurs de **modifier** et **supprimer** les modules.
 
-### 1) Routes protegees (admin)
+### 1) Routes protegees (auth) + Bouncer
 ```ts
 router.get('/modules/:id/edit', [ModulesController, 'showEdit'])
   .use(middleware.auth())
-  .use(middleware.admin())
 
 router.put('/modules/:id', [ModulesController, 'update'])
   .use(middleware.auth())
-  .use(middleware.admin())
 
 router.delete('/modules/:id', [ModulesController, 'destroy'])
   .use(middleware.auth())
-  .use(middleware.admin())
 ```
 
 ### 2) Controller
 ```ts
-async showEdit({ params, view, response }: HttpContext) {
+async showEdit(ctx: HttpContext) {
+  await ctx.bouncer.authorize('manageModule')
+  const { params, view, response } = ctx
   const moduleItem = await Module.find(params.id)
   if (!moduleItem) return response.notFound('Module introuvable')
   return view.render('pages/modules_edit', { moduleItem })
 }
 
-async update({ params, request, response, view }: HttpContext) {
+async update(ctx: HttpContext) {
+  await ctx.bouncer.authorize('manageModule')
+  const { params, request, response, view } = ctx
   const moduleItem = await Module.find(params.id)
   if (!moduleItem) return response.notFound('Module introuvable')
 
@@ -1697,7 +1699,9 @@ async update({ params, request, response, view }: HttpContext) {
   return response.redirect('/modules')
 }
 
-async destroy({ params, response }: HttpContext) {
+async destroy(ctx: HttpContext) {
+  await ctx.bouncer.authorize('manageModule')
+  const { params, response } = ctx
   const moduleItem = await Module.find(params.id)
   if (!moduleItem) return response.notFound('Module introuvable')
   await moduleItem.delete()
@@ -1720,7 +1724,7 @@ Fichier : `resources/views/pages/modules_edit.edge`
 Dans `resources/views/pages/modules.edge`, on affiche les actions pour l'admin :
 
 ```edge
-@if(auth?.user?.role?.name === 'ADMIN')
+@can('manageModule')
   <a href="/modules/{{ moduleItem.id }}/edit">Modifier</a>
   <form action="/modules/{{ moduleItem.id }}" method="POST">
     {{csrfField()}}

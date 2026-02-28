@@ -6,7 +6,7 @@
       Cette page est reservee aux utilisateurs connectes.
     </p>
 
-    @if(auth?.user?.role?.name === 'ADMIN')
+    @can('manageModule')
       <div class="mt-6">
         <a
           href="/modules/create"
@@ -24,7 +24,7 @@
             <h2 class="text-lg font-semibold">{{ moduleItem.title }}</h2>
             <p class="mt-1 text-sm text-slate-600">{{ moduleItem.description }}</p>
 
-            @if(auth?.user?.role?.name === 'ADMIN')
+            @can('manageModule')
               <div class="mt-3 flex items-center gap-3">
                 <a
                   href="/modules/{{ moduleItem.id }}/edit"

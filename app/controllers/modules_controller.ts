@@ -27,11 +27,19 @@ function mapErrors(errors: ValidationErrorItem[]) {
 }
 
 export default class ModulesController {
-  async showCreate({ view }: HttpContext) {
+  private async authorizeAdmin(ctx: HttpContext) {
+    await ctx.bouncer.authorize('manageModule')
+  }
+
+  async showCreate(ctx: HttpContext) {
+    await this.authorizeAdmin(ctx)
+    const { view } = ctx
     return view.render('pages/modules_create')
   }
 
-  async store({ request, response, view }: HttpContext) {
+  async store(ctx: HttpContext) {
+    await this.authorizeAdmin(ctx)
+    const { request, response, view } = ctx
     let payload: { title: string; description: string }
     try {
       payload = await request.validateUsing(moduleValidator)
@@ -54,7 +62,9 @@ export default class ModulesController {
     return response.redirect('/modules')
   }
 
-  async showEdit({ params, view, response }: HttpContext) {
+  async showEdit(ctx: HttpContext) {
+    await this.authorizeAdmin(ctx)
+    const { params, view, response } = ctx
     const moduleItem = await Module.find(params.id)
 
     if (!moduleItem) {
@@ -66,7 +76,9 @@ export default class ModulesController {
     })
   }
 
-  async update({ params, request, response, view }: HttpContext) {
+  async update(ctx: HttpContext) {
+    await this.authorizeAdmin(ctx)
+    const { params, request, response, view } = ctx
     const moduleItem = await Module.find(params.id)
 
     if (!moduleItem) {
@@ -97,7 +109,9 @@ export default class ModulesController {
     return response.redirect('/modules')
   }
 
-  async destroy({ params, response }: HttpContext) {
+  async destroy(ctx: HttpContext) {
+    await this.authorizeAdmin(ctx)
+    const { params, response } = ctx
     const moduleItem = await Module.find(params.id)
 
     if (!moduleItem) {

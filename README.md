@@ -1713,9 +1713,8 @@ async destroy(ctx: HttpContext) {
 Fichier : `resources/views/pages/modules_edit.edge`
 
 ```edge
-<form action="/modules/{{ moduleItem.id }}" method="POST">
+<form action="/modules/{{ moduleItem.id }}?_method=PUT" method="POST">
   {{csrfField()}}
-  {{method('PUT')}}
   <!-- title + description -->
 </form>
 ```
@@ -1726,15 +1725,28 @@ Dans `resources/views/pages/modules.edge`, on affiche les actions pour l'admin :
 ```edge
 @can('manageModule')
   <a href="/modules/{{ moduleItem.id }}/edit">Modifier</a>
-  <form action="/modules/{{ moduleItem.id }}" method="POST">
+  <form action="/modules/{{ moduleItem.id }}?_method=DELETE" method="POST">
     {{csrfField()}}
-    {{method('DELETE')}}
     <button type="submit">Supprimer</button>
   </form>
 @end
 ```
 
-**Pourquoi `{{method('PUT')}}` / `{{method('DELETE')}}` ?**
+**Pourquoi `allowMethodSpoofing` ?**
 Les formulaires HTML n'acceptent que **GET** et **POST**.  
-Adonis fournit `{{method('PUT')}}` / `{{method('DELETE')}}` pour **simuler** ces verbes via un champ cache (`_method`).  
-Le serveur lit ce champ et traite la requete comme un **PUT** ou un **DELETE**.
+Pour utiliser **PUT** / **DELETE**, Adonis doit **spoof** (simuler) la methode.
+
+**Comment l'activer**
+Dans `config/app.ts` :
+```ts
+export const http = defineConfig({
+  allowMethodSpoofing: true,
+})
+```
+
+**Comment l'utiliser**
+Quand `allowMethodSpoofing` est active, tu peux passer `_method` dans l'URL :
+```html
+<form action="/modules/1?_method=DELETE" method="POST"></form>
+```
+Adonis lira `_method` et traitera la requete comme un **DELETE**.

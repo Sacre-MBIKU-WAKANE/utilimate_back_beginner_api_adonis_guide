@@ -27,4 +27,7 @@ router.get('/modules/create', [ModulesController, 'showCreate']).use(middleware.
 router.post('/modules', [ModulesController, 'store']).use(middleware.auth())
 router.get('/modules/:id/edit', [ModulesController, 'showEdit']).use(middleware.auth())
 router.put('/modules/:id', [ModulesController, 'update']).use(middleware.auth())
-router.delete('/modules/:id', [ModulesController, 'destroy']).use(middleware.auth())
+router
+  .delete('/modules/:id', [ModulesController, 'destroy'])
+  .as('modules.destroy')
+  .use(middleware.auth())

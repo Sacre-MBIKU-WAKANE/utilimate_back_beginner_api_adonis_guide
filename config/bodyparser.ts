@@ -11,9 +11,11 @@ const bodyParserConfig = defineConfig({
    * Config for the "application/x-www-form-urlencoded"
    * content-type parser
    */
+
   form: {
     convertEmptyStringsToNull: true,
     types: ['application/x-www-form-urlencoded'],
+    allowMethodSpoofing: true,
   },
 
   /**

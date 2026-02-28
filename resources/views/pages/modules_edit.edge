@@ -17,9 +17,8 @@
       </div>
     @end
 
-    <form class="mt-6 space-y-4" action="/modules/{{ moduleItem.id }}" method="POST">
+    <form class="mt-6 space-y-4" action="/modules/{{ moduleItem.id }}?_method=PUT" method="POST">
       {{csrfField()}}
-      {{method('PUT')}}
 
       <div class="space-y-1">
         <label class="text-sm font-medium" for="title">Titre</label>
